@@ -211,8 +211,7 @@ async function getBannedMessages(db, channel) {
     if (!obj) {
       obj = {
         userId: row["user_id"],
-        userLogin: row["user_login"],
-        userName: row["user_name"],
+        userName: row["username"],
         modId: row["mod_id"],
         modLogin: row["mod_login"],
         sourceId: row["source_room_id"],
