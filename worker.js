@@ -159,9 +159,11 @@ async function getModChannels(env, user, token) {
       }
     });
     const body = await resp.json();
-    body.data.forEach((chan) => {
-      channels.add(chan["broadcaster_id"]);
-    });
+    if (body.data) {
+      body.data.forEach((chan) => {
+        channels.add(chan["broadcaster_id"]);
+      });
+    }
     cursor = body.pagination ? body.pagination.cursor : null;
   } while (cursor && channels.size < 1000);
   return Array.from(channels);
