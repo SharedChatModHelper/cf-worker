@@ -61,7 +61,11 @@ export default {
           }
           const channels = await getModChannels(env, modId, token);
           if (!channels) {
-            return Response.json([]);
+            return Response.json([], {
+              headers: {
+                "Access-Control-Allow-Origin": "*",
+              }
+            });
           }
           const { results } = await db.prepare("SELECT channel_id, channel_name, image_url FROM auths WHERE authorized_at > 0 AND channel_id IN (" + channels.join(",") + ")").all();
           return Response.json(results, {
