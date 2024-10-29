@@ -2,7 +2,7 @@ export default {
   async fetch(request, env, ctx) {
     const auth = request.headers.get("Authorization");
     if (!auth || !auth.startsWith("Bearer ")) {
-      return new Response();
+      return new Response("Missing auth", { status: 401 });
     }
     const token = auth.substring("Bearer ".length);
 
@@ -17,6 +17,9 @@ export default {
           // ban or timeout
           await handleBannedMessages(db, body);
         }
+        return new Response(null, { status: 204 });
+      } else {
+        return new Response("Invalid auth", { status: 403 });
       }
     } else if (request.method === "GET") {
       const channelId = new URL(request.url).searchParams.get("channel");
@@ -24,8 +27,13 @@ export default {
         const modId = await verifyToken(env, token);
         if (modId && await isMod(env, channelId, modId, token)) {
           const resp = await getBannedMessages(db, channelId);
-          return new Response(JSON.stringify(resp));
+          return Response.json(resp);
+        } else {
+          return new Response("Insufficient auth", { status: 403 });
         }
+      } else {
+          // TODO: list supported channels
+          return new Response("Invalid request", { status: 400 });
       }
     } else if (request.method === "DELETE") {
       const url = new URL(request.url);
@@ -35,7 +43,12 @@ export default {
         const modId = await verifyToken(env, token);
         if (modId && await isMod(env, channelId, modId, token)) {
           await deleteBannedMessages(db, channelId, userId);
+          return new Response(null, { status: 204 });
+        } else {
+          return new Response("Insufficient auth", { status: 403 });
         }
+      } else {
+        return new Response("Invalid request", { status: 400 });
       }
     }
 
