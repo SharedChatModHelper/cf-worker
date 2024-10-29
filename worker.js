@@ -193,6 +193,7 @@ async function getModChannels(env, user, token) {
     }
     cursor = body.pagination ? body.pagination.cursor : null;
   } while (cursor && channels.size < 1000);
+  channels.add(user);
   return Array.from(channels);
 }
 
