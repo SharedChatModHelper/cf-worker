@@ -36,8 +36,14 @@ export default {
     } else if (request.method === "GET") {
       const channelId = new URL(request.url).searchParams.get("channel");
       if (channelId) {
-        const modId = await verifyToken(env, token);
-        if (modId && await isMod(env, channelId, modId, token)) {
+        const { modId, scopes } = await verifyToken(env, token);
+        if (!modId) {
+          return makeErrorResponse(403, "Invalid auth");
+        }
+        if (!scopes.includes("moderator:read:shield_mode")) {
+          return makeErrorResponse(403, "Invalid scopes");
+        }
+        if (await isMod(env, channelId, modId, token)) {
           const resp = await getBannedMessages(db, channelId);
           return Response.json(resp, {
             headers: {
@@ -48,8 +54,11 @@ export default {
           return makeErrorResponse(403, "Insufficient auth");
         }
       } else {
-        const modId = await verifyToken(env, token);
+        const { modId, scopes } = await verifyToken(env, token);
         if (modId) {
+          if (!scopes.includes("user:read:moderated_channels")) {
+            return makeErrorResponse(403, "Invalid scopes");
+          }
           const channels = await getModChannels(env, modId, token);
           if (!channels) {
             return Response.json([]);
@@ -69,8 +78,14 @@ export default {
       const channelId = url.searchParams.get("channel");
       const userId = url.searchParams.get("user");
       if (channelId && userId) {
-        const modId = await verifyToken(env, token);
-        if (modId && await isMod(env, channelId, modId, token)) {
+        const { modId, scopes } = await verifyToken(env, token);
+        if (!modId) {
+          return makeErrorResponse(403, "Invalid auth");
+        }
+        if (!scopes.includes("moderator:read:shield_mode")) {
+          return makeErrorResponse(403, "Invalid scopes");
+        }
+        if (await isMod(env, channelId, modId, token)) {
           await deleteBannedMessages(db, channelId, userId);
           return new Response(null, {
             status: 204,
@@ -124,15 +139,23 @@ function verify(actual, expected) {
 }
 
 async function verifyToken(env, token) {
-  const resp = await fetch("https://id.twitch.tv/oauth2/validate", {
-    method: "GET",
-    headers: {
-      "Authorization": "OAuth " + token
-    }
-  });
-  const body = await resp.json();
-  if (body["client_id"] != env["CLIENT_ID"]) return null;
-  return body["user_id"];
+  let body;
+  try {
+    const resp = await fetch("https://id.twitch.tv/oauth2/validate", {
+      method: "GET",
+      headers: {
+        "Authorization": "OAuth " + token
+      }
+    });
+    body = await resp.json();
+  } catch (error) {
+    body = {};
+  }
+  if (body["client_id"] != env["CLIENT_ID"]) return { modId: null, scopes: [] };
+  return {
+    modId: body["user_id"],
+    scopes: body["scopes"] ?? []
+  };
 }
 
 async function isMod(env, channel, user, token) {
