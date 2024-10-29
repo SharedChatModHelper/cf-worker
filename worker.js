@@ -202,7 +202,7 @@ async function handleBannedMessages(db, data) {
 }
 
 async function getBannedMessages(db, channel) {
-  const query = db.prepare("SELECT * FROM (bans LEFT JOIN banned_messages ON bans.channel_id = banned_messages.channel AND bans.user_id = banned_messages.user) WHERE bans.channel_id = ?1 ORDER BY bans.timestamp DESC, banned_messages.ts LIMIT 25").bind(channel);
+  const query = db.prepare("SELECT * FROM (bans LEFT JOIN banned_messages ON bans.channel_id = banned_messages.channel AND bans.user_id = banned_messages.user) WHERE bans.channel_id = ?1 ORDER BY bans.timestamp DESC, banned_messages.ts LIMIT 250").bind(channel);
   const { results } = await query.all();
 
   const map = new Map();
@@ -211,7 +211,7 @@ async function getBannedMessages(db, channel) {
     if (!obj) {
       obj = {
         userId: row["user_id"],
-        userName: row["username"],
+        userName: row["username"] ?? row["user_login"],
         modId: row["mod_id"],
         modLogin: row["mod_login"],
         sourceId: row["source_room_id"],
@@ -225,7 +225,14 @@ async function getBannedMessages(db, channel) {
     }
 
     if (row.message) {
-      obj.messages.push({text: row["message"], sourceId: row["room_id"], sourceLogin: row["room_login"], timestamp: row["ts"]});
+      const roomId = row["room_id"] ?? "";
+      const roomLogin = row["room_login"] ?? "";
+      obj.messages.push({
+        text: row["message"],
+        sourceId: roomId ? roomId : row["source_room_id"],
+        sourceLogin: roomLogin ? roomLogin : row["source_room_login"],
+        timestamp: row["ts"],
+      });
     }
   }
 
