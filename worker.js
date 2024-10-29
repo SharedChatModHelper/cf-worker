@@ -163,7 +163,7 @@ async function getModChannels(env, user, token) {
       channels.add(chan["broadcaster_id"]);
     });
     cursor = body.pagination ? body.pagination.cursor : null;
-  } while (cursor);
+  } while (cursor && channels.size < 1000);
   return Array.from(channels);
 }
 
