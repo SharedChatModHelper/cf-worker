@@ -50,6 +50,18 @@ export default {
       } else {
         return new Response("Invalid request", { status: 400 });
       }
+    } else if (request.method == "PUT") {
+      if (verify(token, env["CLIENT_DB_TOKEN"])) {
+        const body = await request.json();
+        const authAt = body.added ? body.timestamp : 0;
+        const revokeAt = body.added ? 0 : body.timestamp;
+        await db.prepare("REPLACE INTO auths (channel_id, channel_name, authorized_at, revoked_at, image_url) VALUES (?1, ?2, ?3, ?4, ?5)")
+                .bind(body.channelId, body.channelName, authAt, revokeAt, body.imageUrl ?? "")
+                .run();
+        return new Response(null, { status: 204 });
+      } else {
+        return new Response("Invalid auth", { status: 403 });
+      }
     }
 
     return new Response();
