@@ -32,8 +32,17 @@ export default {
           return new Response("Insufficient auth", { status: 403 });
         }
       } else {
-          // TODO: list supported channels
-          return new Response("Invalid request", { status: 400 });
+        const modId = await verifyToken(env, token);
+        if (modId) {
+          const channels = await getModChannels(env, modId, token);
+          if (!channels) {
+            return Response.json([]);
+          }
+          const { results } = await db.prepare("SELECT channel_id, channel_name, image_url FROM auths WHERE authorized_at > 0 AND channel_id IN (" + channels.join(",") + ")").all();
+          return Response.json(results);
+        } else {
+          return new Response("Invalid auth", { status: 403 });
+        }
       }
     } else if (request.method === "DELETE") {
       const url = new URL(request.url);
@@ -97,6 +106,26 @@ async function isMod(env, channel, user, token) {
   });
   const body = await resp.json();
   return !!body["data"];
+}
+
+async function getModChannels(env, user, token) {
+  const channels = new Set();
+  let cursor = "";
+  do {
+    const resp = await fetch("https://api.twitch.tv/helix/moderation/channels?first=100&user_id=" + user + "&after=" + cursor, {
+      method: "GET",
+      headers: {
+        "Client-Id": env["CLIENT_ID"],
+        "Authorization": "Bearer " + token
+      }
+    });
+    const body = await resp.json();
+    cursor = body.pagination.cursor;
+    body.data.forEach((chan) => {
+      channels.add(chan["broadcaster_id"]);
+    });
+  } while (cursor);
+  return Array.from(channels);
 }
 
 async function handleBannedMessages(db, data) {
