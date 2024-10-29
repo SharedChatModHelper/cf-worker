@@ -1,8 +1,20 @@
 export default {
   async fetch(request, env, ctx) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "DELETE,GET,POST,OPTIONS",
+          "Access-Control-Max-Age": "86400",
+          "Access-Control-Allow-Headers": request.headers.get("Access-Control-Request-Headers") ?? "Accept, Authorization, Content-Type, Origin",
+          "Allow": "DELETE, GET, POST, OPTIONS",
+        }
+      });
+    }
+
     const auth = request.headers.get("Authorization");
     if (!auth || !auth.startsWith("Bearer ")) {
-      return new Response("Missing auth", { status: 401 });
+      return makeErrorResponse(401, "Missing auth");
     }
     const token = auth.substring("Bearer ".length);
 
@@ -19,7 +31,7 @@ export default {
         }
         return new Response(null, { status: 204 });
       } else {
-        return new Response("Invalid auth", { status: 403 });
+        return makeErrorResponse(403, "Invalid auth");
       }
     } else if (request.method === "GET") {
       const channelId = new URL(request.url).searchParams.get("channel");
@@ -27,9 +39,13 @@ export default {
         const modId = await verifyToken(env, token);
         if (modId && await isMod(env, channelId, modId, token)) {
           const resp = await getBannedMessages(db, channelId);
-          return Response.json(resp);
+          return Response.json(resp, {
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+            }
+          });
         } else {
-          return new Response("Insufficient auth", { status: 403 });
+          return makeErrorResponse(403, "Insufficient auth");
         }
       } else {
         const modId = await verifyToken(env, token);
@@ -39,9 +55,13 @@ export default {
             return Response.json([]);
           }
           const { results } = await db.prepare("SELECT channel_id, channel_name, image_url FROM auths WHERE authorized_at > 0 AND channel_id IN (" + channels.join(",") + ")").all();
-          return Response.json(results);
+          return Response.json(results, {
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+            }
+          });
         } else {
-          return new Response("Invalid auth", { status: 403 });
+          return makeErrorResponse(403, "Invalid auth");
         }
       }
     } else if (request.method === "DELETE") {
@@ -52,12 +72,17 @@ export default {
         const modId = await verifyToken(env, token);
         if (modId && await isMod(env, channelId, modId, token)) {
           await deleteBannedMessages(db, channelId, userId);
-          return new Response(null, { status: 204 });
+          return new Response(null, {
+            status: 204,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+            }
+          });
         } else {
-          return new Response("Insufficient auth", { status: 403 });
+          return makeErrorResponse(403, "Insufficient auth");
         }
       } else {
-        return new Response("Invalid request", { status: 400 });
+        return makeErrorResponse(400, "Invalid request");
       }
     } else if (request.method == "PUT") {
       if (verify(token, env["CLIENT_DB_TOKEN"])) {
@@ -69,13 +94,27 @@ export default {
                 .run();
         return new Response(null, { status: 204 });
       } else {
-        return new Response("Invalid auth", { status: 403 });
+        return makeErrorResponse(403, "Invalid auth");
       }
     }
 
-    return new Response();
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      }
+    });
   },
 };
+
+function makeErrorResponse(code, message) {
+  return new Response(JSON.stringify({ error: message }), { 
+    status: code, 
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "application/json"
+    } 
+  });
+}
 
 function verify(actual, expected) {
   const encoder = new TextEncoder();
@@ -120,10 +159,10 @@ async function getModChannels(env, user, token) {
       }
     });
     const body = await resp.json();
-    cursor = body.pagination.cursor;
     body.data.forEach((chan) => {
       channels.add(chan["broadcaster_id"]);
     });
+    cursor = body.pagination ? body.pagination.cursor : null;
   } while (cursor);
   return Array.from(channels);
 }
