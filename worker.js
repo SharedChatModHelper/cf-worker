@@ -202,8 +202,8 @@ async function handleBannedMessages(db, data) {
           .bind(data.channelId, data.userId, data.moderatorId, data.moderatorLogin, data.sourceRoomId, data.sourceRoomLogin, data.timestamp, data.duration, data.reason, data.userLogin)
           .run();
 
-  const stmt = db.prepare("INSERT INTO banned_messages (channel, user, username, room_id, room_login, ts, message) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)");
-  await db.batch(data.messages.map((msg) => stmt.bind(data.channelId, data.userId, data.userLogin, msg.sourceId ?? "", msg.sourceLogin ?? "", msg.ts ?? "", msg.text)));
+  const stmt = db.prepare("INSERT INTO banned_messages (channel, user, username, room_id, room_login, ts, message, fragments, emotes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)");
+  await db.batch(data.messages.map((msg) => stmt.bind(data.channelId, data.userId, data.userLogin, msg.sourceId ?? "", msg.sourceLogin ?? "", msg.ts ?? "", msg.text, JSON.stringify(msg.fragments ?? []), JSON.stringify(msg.emotes ?? {}))));
 }
 
 async function getBannedMessages(db, channel) {
@@ -237,6 +237,8 @@ async function getBannedMessages(db, channel) {
         sourceId: roomId ? roomId : row["source_room_id"],
         sourceLogin: roomLogin ? roomLogin : row["source_room_login"],
         timestamp: row["ts"],
+        fragments: row["fragments"] ? JSON.parse(row["fragments"]) : [{ text: row["message"] }],
+        emotes: row["emotes"] ? JSON.parse(row["emotes"]) : {},
       });
     }
   }
