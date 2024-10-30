@@ -34,7 +34,8 @@ export default {
         return makeErrorResponse(403, "Invalid auth");
       }
     } else if (request.method === "GET") {
-      const channelId = new URL(request.url).searchParams.get("channel");
+      const params = new URL(request.url).searchParams;
+      const channelId = params.get("channel");
       if (channelId) {
         const { modId, scopes } = await verifyToken(env, token);
         if (!modId) {
@@ -44,7 +45,7 @@ export default {
           return makeErrorResponse(403, "Invalid scopes");
         }
         if (await isMod(env, channelId, modId, token)) {
-          const resp = await getBannedMessages(db, channelId);
+          const resp = await getBannedMessages(db, channelId, "1" === params.get("sort"));
           return Response.json(resp, {
             headers: {
               "Access-Control-Allow-Origin": "*",
@@ -206,8 +207,9 @@ async function handleBannedMessages(db, data) {
   await db.batch(data.messages.map((msg) => stmt.bind(data.channelId, data.userId, data.userLogin, msg.sourceId ?? "", msg.sourceLogin ?? "", msg.ts ?? "", msg.text, JSON.stringify(msg.fragments ?? []), JSON.stringify(msg.emotes ?? {}))));
 }
 
-async function getBannedMessages(db, channel) {
-  const query = db.prepare("SELECT * FROM (bans LEFT JOIN banned_messages ON bans.channel_id = banned_messages.channel AND bans.user_id = banned_messages.user) WHERE bans.channel_id = ?1 ORDER BY bans.timestamp DESC, banned_messages.ts LIMIT 250").bind(channel);
+async function getBannedMessages(db, channel, oldestFirst) {
+  const sort = oldestFirst ? "ASC" : "DESC";
+  const query = db.prepare(`SELECT * FROM (bans LEFT JOIN banned_messages ON bans.channel_id = banned_messages.channel AND bans.user_id = banned_messages.user) WHERE bans.channel_id = ?1 ORDER BY bans.timestamp ${sort}, banned_messages.ts LIMIT 250`).bind(channel);
   const { results } = await query.all();
 
   const map = new Map();
