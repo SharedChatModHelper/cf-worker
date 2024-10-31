@@ -216,6 +216,8 @@ async function getBannedMessages(db, channel, oldestFirst) {
   for (const row of results) {
     let obj = map.get(row["user_id"]);
     if (!obj) {
+      if (map.size >= 100) break;
+
       obj = {
         channelLogin: row["channel_login"],
         userId: row["user_id"],
