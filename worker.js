@@ -199,8 +199,8 @@ async function getModChannels(env, user, token) {
 }
 
 async function handleBannedMessages(db, data) {
-  await db.prepare("INSERT INTO bans (channel_id, user_id, mod_id, mod_login, source_room_id, source_room_login, timestamp, duration, reason, user_login) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)")
-          .bind(data.channelId, data.userId, data.moderatorId, data.moderatorLogin, data.sourceRoomId, data.sourceRoomLogin, data.timestamp, data.duration, data.reason, data.userLogin)
+  await db.prepare("INSERT INTO bans (channel_id, user_id, mod_id, mod_login, source_room_id, source_room_login, timestamp, duration, reason, user_login, channel_login) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)")
+          .bind(data.channelId, data.userId, data.moderatorId, data.moderatorLogin, data.sourceRoomId, data.sourceRoomLogin, data.timestamp, data.duration, data.reason, data.userLogin, data.channelLogin)
           .run();
 
   const stmt = db.prepare("INSERT INTO banned_messages (channel, user, username, room_id, room_login, ts, message, fragments, emotes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)");
@@ -217,6 +217,7 @@ async function getBannedMessages(db, channel, oldestFirst) {
     let obj = map.get(row["user_id"]);
     if (!obj) {
       obj = {
+        channelLogin: row["channel_login"],
         userId: row["user_id"],
         userName: row["username"] ?? row["user_login"],
         modId: row["mod_id"],
