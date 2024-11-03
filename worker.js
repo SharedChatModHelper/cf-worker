@@ -239,8 +239,8 @@ async function getBannedMessages(db, channel, oldestFirst) {
       const roomLogin = row["room_login"] ?? "";
       obj.messages.push({
         text: row["message"],
-        sourceId: roomId ? roomId : row["source_room_id"],
-        sourceLogin: roomLogin ? roomLogin : row["source_room_login"],
+        sourceId: roomId ? roomId : channel,
+        sourceLogin: roomLogin ? roomLogin : row["channel_login"],
         timestamp: row["ts"],
         fragments: row["fragments"] ? JSON.parse(row["fragments"]) : [{ text: row["message"] }],
         emotes: row["emotes"] ? JSON.parse(row["emotes"]) : {},
