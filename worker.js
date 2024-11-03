@@ -227,7 +227,7 @@ async function getBannedMessages(db, channel, oldestFirst) {
         sourceId: row["source_room_id"],
         sourceLogin: row["source_room_login"],
         duration: row["duration"],
-        reason: row["reason"],
+        reason: row["reason"] ?? "",
         timestamp: row["timestamp"],
         messages: []
       };
